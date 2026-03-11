@@ -14,6 +14,5 @@ A machine learning project that clusters Spotify songs based on audio features u
 - Streamlit (for deployment)
 - KMeans Clustering, PCA, t-SNE
 
-## Live Demo
 
-[https://spotifyclustering-rflknbrjrtcdcwkl3udxlk.streamlit.app/](#)  ← paste your streamlit URL here after deployment
+
