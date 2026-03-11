@@ -14,11 +14,6 @@ A machine learning project that clusters Spotify songs based on audio features u
 - Streamlit (for deployment)
 - KMeans Clustering, PCA, t-SNE
 
-## How to Run Locally
-```bash
-pip install -r requirements.txt
-streamlit run app.py
-```
-
 ## Live Demo
-[Click here to try the app!](#)  ← paste your streamlit URL here after deployment
+
+[https://spotifyclustering-rflknbrjrtcdcwkl3udxlk.streamlit.app/](#)  ← paste your streamlit URL here after deployment
