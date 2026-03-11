@@ -188,7 +188,7 @@ cluster_info = {
 st.markdown("""
 <div class="hero">
     <h1>🎵 Music Personality Finder</h1>
-    <p>Discover which music cluster matches your vibe using AI</p>
+    <p>Think of a song you love — find out what type of music person you are!</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -197,15 +197,15 @@ st.markdown(f"""
 <div class="stat-row">
     <div class="stat-card">
         <div class="number">{len(df):,}</div>
-        <div class="label">Songs Analyzed</div>
+        <div class="label">Songs Studied</div>
     </div>
     <div class="stat-card">
         <div class="number">{n_clusters}</div>
-        <div class="label">Music Clusters</div>
+        <div class="label">Music Moods</div>
     </div>
     <div class="stat-card">
         <div class="number">5</div>
-        <div class="label">Audio Features</div>
+        <div class="label">Song Traits</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -213,23 +213,23 @@ st.markdown(f"""
 # ─── FEATURES USED ─────────────────────────────────────────────────────────────
 st.markdown("""
 <div class="card">
-    <div class="section-title">🎛️ Features Used to Cluster Songs</div>
+    <div class="section-title">🎛️ What We Look At In Every Song</div>
     <p style="color:#b3b3b3; font-size:0.9rem; margin-bottom:0.8rem;">
-        Every Spotify song has hidden audio scores. We use these 5 to find patterns:
+        Every song has 5 hidden scores that describe how it sounds and feels:
     </p>
-    <span class="feature-badge">💃 Danceability</span>
-    <span class="feature-badge">⚡ Energy</span>
-    <span class="feature-badge">🥁 Tempo (BPM)</span>
-    <span class="feature-badge">🔊 Loudness</span>
-    <span class="feature-badge">😊 Valence (Mood)</span>
+    <span class="feature-badge">💃 How danceable it is</span>
+    <span class="feature-badge">⚡ How energetic it feels</span>
+    <span class="feature-badge">🥁 How fast or slow it is</span>
+    <span class="feature-badge">🔊 How loud it is</span>
+    <span class="feature-badge">😊 How happy or sad it sounds</span>
 </div>
 """, unsafe_allow_html=True)
 
 st.markdown("---")
 
 # ─── CLUSTER EXPLORER ──────────────────────────────────────────────────────────
-st.markdown('<div class="section-title">🗂️ The 5 Music Clusters</div>', unsafe_allow_html=True)
-st.markdown("<p style='color:#b3b3b3; font-size:0.9rem;'>Our AI grouped all songs into these 5 personalities:</p>", unsafe_allow_html=True)
+st.markdown('<div class="section-title">🎭 The 5 Music Moods</div>', unsafe_allow_html=True)
+st.markdown("<p style='color:#b3b3b3; font-size:0.9rem;'>We grouped all songs into these 5 moods based on how they sound:</p>", unsafe_allow_html=True)
 
 cols = st.columns(5)
 for i, col in enumerate(cols):
@@ -247,68 +247,32 @@ for i, col in enumerate(cols):
 
 st.markdown("---")
 
-# ─── VISUALIZATION ─────────────────────────────────────────────────────────────
-st.markdown('<div class="section-title">📊 How Songs are Clustered (PCA View)</div>', unsafe_allow_html=True)
-st.markdown("<p style='color:#b3b3b3; font-size:0.9rem; margin-bottom:1rem;'>Each dot = one song. Colors = different clusters. Similar sounding songs are grouped together.</p>", unsafe_allow_html=True)
-
-X_scaled = scaler.transform(df[features])
-pca = PCA(n_components=2)
-X_pca = pca.fit_transform(X_scaled)
-
-colors_list = ['#4ECDC4', '#FF6B6B', '#FFE66D', '#A8DADC', '#95E1D3']
-
-fig, ax = plt.subplots(figsize=(9, 4))
-fig.patch.set_facecolor('#1a1a2e')
-ax.set_facecolor('#0f0f1a')
-
-for i in range(n_clusters):
-    mask = df['cluster'] == i
-    info = cluster_info.get(i, {"name": f"Cluster {i}", "color": "#1DB954"})
-    ax.scatter(X_pca[mask, 0], X_pca[mask, 1],
-               c=colors_list[i % len(colors_list)],
-               label=f"Cluster {i}: {info['name']}",
-               alpha=0.4, s=3)
-
-ax.set_xlabel('PCA Component 1', color='#b3b3b3', fontsize=9)
-ax.set_ylabel('PCA Component 2', color='#b3b3b3', fontsize=9)
-ax.tick_params(colors='#b3b3b3', labelsize=8)
-for spine in ax.spines.values():
-    spine.set_color('#333')
-
-legend = ax.legend(loc='upper right', fontsize=7,
-                   facecolor='#1a1a2e', edgecolor='#333',
-                   labelcolor='white')
-plt.tight_layout()
-st.pyplot(fig)
-
-st.markdown("---")
-
 # ─── PREDICT YOUR SONG ─────────────────────────────────────────────────────────
-st.markdown('<div class="section-title">🎯 Find Your Music Personality!</div>', unsafe_allow_html=True)
-st.markdown("<p style='color:#b3b3b3; font-size:0.9rem; margin-bottom:1.2rem;'>Think of a song you love. Adjust the sliders to match how it feels, then find its cluster!</p>", unsafe_allow_html=True)
+st.markdown('<div class="section-title">🎯 What\'s Your Music Mood?</div>', unsafe_allow_html=True)
+st.markdown("<p style='color:#b3b3b3; font-size:0.9rem; margin-bottom:1.2rem;'>Think of a song you love right now. Move the sliders to describe how it feels, then hit the button!</p>", unsafe_allow_html=True)
 
 st.markdown("<div class='card'>", unsafe_allow_html=True)
 
 col1, col2 = st.columns(2)
 with col1:
-    dance = st.slider("💃 Danceability", 0.0, 1.0, 0.5, 0.01,
-                      help="0 = impossible to dance to, 1 = born to dance")
-    energy = st.slider("⚡ Energy", 0.0, 1.0, 0.5, 0.01,
-                       help="0 = very calm, 1 = extremely intense")
-    tempo = st.slider("🥁 Tempo (BPM)", 50.0, 220.0, 120.0, 1.0,
-                      help="Beats per minute — 60 is slow, 180 is very fast")
+    dance = st.slider("💃 Can you dance to it?", 0.0, 1.0, 0.5, 0.01,
+                      help="0 = no way, 1 = impossible not to dance")
+    energy = st.slider("⚡ How energetic does it feel?", 0.0, 1.0, 0.5, 0.01,
+                       help="0 = super calm and quiet, 1 = wild and intense")
+    tempo = st.slider("🥁 How fast is it? (beats per min)", 50.0, 220.0, 120.0, 1.0,
+                      help="60 = very slow, 120 = normal, 180 = very fast")
 
 with col2:
-    loudness = st.slider("🔊 Loudness (dB)", -60.0, 0.0, -10.0, 0.5,
-                         help="-60 = nearly silent, 0 = maximum volume")
-    valence = st.slider("😊 Valence (Mood)", 0.0, 1.0, 0.5, 0.01,
-                        help="0 = very sad/dark, 1 = very happy/positive")
+    loudness = st.slider("🔊 How loud is it?", -60.0, 0.0, -10.0, 0.5,
+                         help="-60 = very quiet, 0 = very loud")
+    valence = st.slider("😊 Does it make you happy or sad?", 0.0, 1.0, 0.5, 0.01,
+                        help="0 = sad/dark feeling, 1 = happy/uplifting feeling")
 
 st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-if st.button("🔍 Find My Music Cluster!"):
+if st.button("🎵 Find My Music Mood!"):
     input_data = np.array([[dance, energy, tempo, loudness, valence]])
     input_scaled = scaler.transform(input_data)
     cluster_pred = int(model.predict(input_scaled)[0])
@@ -317,28 +281,26 @@ if st.button("🔍 Find My Music Cluster!"):
     st.markdown(f"""
     <div class="result-box" style="background: linear-gradient(135deg, {info['color']}cc, {info['color']}88);">
         <div style="font-size: 3rem">{info['emoji']}</div>
-        <h2>You're in Cluster {cluster_pred} — {info['name']}!</h2>
+        <h2>You're a {info['name']} listener!</h2>
         <p>{info['desc']}</p>
     </div>
     """, unsafe_allow_html=True)
 
-    # Show mini feature breakdown
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown('<div class="section-title">📈 Your Song\'s Profile</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">📈 Your Song\'s Vibe Breakdown</div>', unsafe_allow_html=True)
 
     fig2, ax2 = plt.subplots(figsize=(7, 2.5))
     fig2.patch.set_facecolor('#1a1a2e')
     ax2.set_facecolor('#0f0f1a')
 
-    feature_labels = ['Danceability', 'Energy', 'Tempo\n(÷220)', 'Loudness\n(norm)', 'Valence']
-    # Normalize tempo and loudness to 0-1 for display
+    feature_labels = ['Can dance to it', 'How energetic', 'How fast (speed)', 'How loud', 'Happy or sad']
     user_values = [dance, energy, tempo/220, (loudness+60)/60, valence]
     bar_colors = [info['color']] * 5
 
     bars = ax2.barh(feature_labels, user_values, color=bar_colors, alpha=0.85, height=0.5)
     ax2.set_xlim(0, 1)
     ax2.tick_params(colors='#b3b3b3', labelsize=8)
-    ax2.set_xlabel('Score (0 to 1)', color='#b3b3b3', fontsize=8)
+    ax2.set_xlabel('Score (Low → High)', color='#b3b3b3', fontsize=8)
     for spine in ax2.spines.values():
         spine.set_color('#333')
 
