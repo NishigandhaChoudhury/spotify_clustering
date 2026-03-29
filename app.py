@@ -1,316 +1,430 @@
-# app.py — Spotify Music Clustering App (Clean & User Friendly)
-
 import streamlit as st
 import pandas as pd
 import numpy as np
 import pickle
+import plotly.express as px
+import plotly.graph_objects as go
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-from sklearn.decomposition import PCA
-import warnings
-warnings.filterwarnings('ignore')
 
-# ─── PAGE CONFIG ───────────────────────────────────────────────────────────────
+# ─── Page Config ────────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Spotify Music Personality",
+    page_title="🎵 Spotify Music Clustering",
     page_icon="🎵",
-    layout="centered"
+    layout="wide"
 )
 
-# ─── CUSTOM CSS ────────────────────────────────────────────────────────────────
+# ─── Custom CSS ─────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Circular+Std&display=swap');
-
-    /* Background */
-    .stApp {
-        background: linear-gradient(135deg, #0f0f0f 0%, #1a1a2e 50%, #0d0d0d 100%);
-        color: white;
-    }
-
-    /* Hide default streamlit elements */
-    #MainMenu, footer, header {visibility: hidden;}
-
-    /* Hero section */
-    .hero {
+    /* Dark Spotify-like theme */
+    .stApp { background-color: #121212; color: #FFFFFF; }
+    .result-card {
+        background: linear-gradient(135deg, #1DB954 0%, #158a3e 100%);
+        border-radius: 20px;
+        padding: 30px;
         text-align: center;
-        padding: 2.5rem 1rem 1.5rem 1rem;
+        margin: 20px 0;
     }
-    .hero h1 {
-        font-size: 2.8rem;
-        font-weight: 900;
-        background: linear-gradient(90deg, #1DB954, #1ed760, #17a844);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 0.3rem;
-    }
-    .hero p {
-        color: #b3b3b3;
-        font-size: 1.1rem;
-        margin-top: 0;
-    }
-
-    /* Card */
-    .card {
-        background: rgba(255,255,255,0.05);
-        border: 1px solid rgba(255,255,255,0.1);
-        border-radius: 16px;
-        padding: 1.5rem 2rem;
-        margin: 1rem 0;
-    }
-
-    /* Cluster result box */
-    .result-box {
-        background: linear-gradient(135deg, #1DB954, #17a844);
-        border-radius: 16px;
-        padding: 1.5rem 2rem;
-        text-align: center;
-        margin-top: 1.2rem;
-    }
-    .result-box h2 {
+    .mood-title {
+        font-size: 2.2rem;
+        font-weight: 800;
         color: white;
-        font-size: 1.8rem;
         margin: 0;
     }
-    .result-box p {
+    .mood-subtitle {
+        font-size: 1.1rem;
         color: rgba(255,255,255,0.85);
-        font-size: 1rem;
-        margin-top: 0.3rem;
+        margin-top: 8px;
     }
-
-    /* Stat cards */
-    .stat-row {
-        display: flex;
-        gap: 1rem;
-        justify-content: center;
-        margin: 1rem 0;
-    }
-    .stat-card {
-        background: rgba(29, 185, 84, 0.12);
-        border: 1px solid rgba(29, 185, 84, 0.3);
-        border-radius: 12px;
-        padding: 0.8rem 1.5rem;
-        text-align: center;
-        flex: 1;
-    }
-    .stat-card .number {
-        font-size: 1.8rem;
-        font-weight: 800;
-        color: #1DB954;
-    }
-    .stat-card .label {
-        font-size: 0.8rem;
-        color: #b3b3b3;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-
-    /* Feature badge */
-    .feature-badge {
-        display: inline-block;
-        background: rgba(29,185,84,0.15);
-        border: 1px solid rgba(29,185,84,0.4);
-        color: #1DB954;
-        border-radius: 20px;
-        padding: 0.3rem 0.9rem;
-        font-size: 0.85rem;
-        margin: 0.2rem;
-    }
-
-    /* Section header */
-    .section-title {
-        color: white;
-        font-size: 1.3rem;
-        font-weight: 700;
-        margin-bottom: 0.5rem;
+    .song-card {
+        background: #1e1e1e;
         border-left: 4px solid #1DB954;
-        padding-left: 0.8rem;
+        border-radius: 10px;
+        padding: 14px 18px;
+        margin: 8px 0;
     }
-
-    /* Slider labels */
-    .stSlider label {
-        color: #e0e0e0 !important;
-        font-weight: 600;
+    .song-title { font-weight: 700; font-size: 1rem; color: #FFFFFF; }
+    .song-artist { color: #b3b3b3; font-size: 0.88rem; }
+    .slider-hint { color: #b3b3b3; font-size: 0.78rem; margin-top: -12px; margin-bottom: 16px; }
+    .share-box {
+        background: #1e1e1e;
+        border: 2px dashed #1DB954;
+        border-radius: 16px;
+        padding: 24px;
+        text-align: center;
+        margin-top: 20px;
     }
-
-    /* Button */
-    .stButton > button {
-        background: linear-gradient(135deg, #1DB954, #17a844) !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 50px !important;
-        padding: 0.7rem 2.5rem !important;
-        font-size: 1.1rem !important;
-        font-weight: 700 !important;
-        width: 100%;
-        transition: transform 0.2s;
+    .metric-card {
+        background: #1e1e1e;
+        border-radius: 12px;
+        padding: 18px;
+        text-align: center;
     }
-    .stButton > button:hover {
-        transform: scale(1.03);
-    }
-
-    /* Divider */
-    hr {
-        border-color: rgba(255,255,255,0.1) !important;
-        margin: 1.5rem 0;
-    }
+    .stTabs [data-baseweb="tab"] { color: #b3b3b3; font-weight: 600; }
+    .stTabs [aria-selected="true"] { color: #1DB954 !important; border-bottom: 3px solid #1DB954; }
 </style>
 """, unsafe_allow_html=True)
 
-# ─── LOAD MODEL & DATA ─────────────────────────────────────────────────────────
-@st.cache_resource
-def load_model():
-    with open('kmeans_model.pkl', 'rb') as f:
-        model = pickle.load(f)
-    with open('scaler.pkl', 'rb') as f:
-        scaler = pickle.load(f)
-    return model, scaler
+# ─── Constants ───────────────────────────────────────────────────────────────────
+FEATURES = ['danceability', 'energy', 'tempo', 'loudness', 'valence']
 
-@st.cache_data
-def load_data():
-    return pd.read_csv('clustered_songs.csv')
-
-model, scaler = load_model()
-df = load_data()
-features = ['danceability', 'energy', 'tempo', 'loudness', 'valence']
-n_clusters = df['cluster'].nunique()
-
-# ─── CLUSTER PERSONALITIES ─────────────────────────────────────────────────────
-cluster_info = {
-    0: {"name": "Calm & Chill",        "emoji": "😌", "desc": "Soft, relaxing songs perfect for studying or winding down.", "color": "#4ECDC4"},
-    1: {"name": "Danceable & Upbeat",  "emoji": "💃", "desc": "Feel-good tracks made for dancing and parties.",            "color": "#FF6B6B"},
-    2: {"name": "High Energy",         "emoji": "🤘", "desc": "Intense, powerful songs for workouts and hype moments.",    "color": "#FFE66D"},
-    3: {"name": "Sad & Emotional",     "emoji": "🌧️", "desc": "Deep, emotional music for introspective moods.",           "color": "#A8DADC"},
-    4: {"name": "Happy & Vibrant",     "emoji": "☀️", "desc": "Bright, cheerful tunes that instantly lift your mood.",    "color": "#95E1D3"},
+CLUSTER_INFO = {
+    0: {
+        "name": "😤 Intense & Powerful",
+        "desc": "You're drawn to raw energy and bold sounds. High intensity, low fluff.",
+        "tags": ["#HighEnergy", "#Intense", "#Powerful"],
+        "songs": [
+            {"title": "Thunderstruck", "artist": "AC/DC"},
+            {"title": "Killing in the Name", "artist": "Rage Against the Machine"},
+            {"title": "Enter Sandman", "artist": "Metallica"},
+        ]
+    },
+    1: {
+        "name": "🌿 Chill & Acoustic",
+        "desc": "Low-key, laid-back, introspective. You vibe to music that breathes.",
+        "tags": ["#ChillVibes", "#Acoustic", "#Calm"],
+        "songs": [
+            {"title": "The Night We Met", "artist": "Lord Huron"},
+            {"title": "Bloom", "artist": "The Paper Kites"},
+            {"title": "Skinny Love", "artist": "Bon Iver"},
+        ]
+    },
+    2: {
+        "name": "🕺 Danceable & Upbeat",
+        "desc": "You were born to move. High danceability, feel-good energy, pure fun.",
+        "tags": ["#DanceFloor", "#PopVibes", "#Upbeat"],
+        "songs": [
+            {"title": "As It Was", "artist": "Harry Styles"},
+            {"title": "Levitating", "artist": "Dua Lipa"},
+            {"title": "Blinding Lights", "artist": "The Weeknd"},
+        ]
+    },
+    3: {
+        "name": "🎷 Mellow & Soulful",
+        "desc": "Mood music. Rich tones, moderate pace — perfect for late nights.",
+        "tags": ["#Soulful", "#Mellow", "#Jazzy"],
+        "songs": [
+            {"title": "Redbone", "artist": "Childish Gambino"},
+            {"title": "Come Away With Me", "artist": "Norah Jones"},
+            {"title": "Golden", "artist": "Jill Scott"},
+        ]
+    },
+    4: {
+        "name": "🔥 Electronic & Euphoric",
+        "desc": "Festival energy, synth drops, unstoppable tempo. You live for the beat.",
+        "tags": ["#Electronic", "#Euphoric", "#Festival"],
+        "songs": [
+            {"title": "Levels", "artist": "Avicii"},
+            {"title": "One More Time", "artist": "Daft Punk"},
+            {"title": "Titanium", "artist": "David Guetta"},
+        ]
+    },
 }
 
-# ─── HERO SECTION ──────────────────────────────────────────────────────────────
-st.markdown("""
-<div class="hero">
-    <h1>🎵 Music Personality Finder</h1>
-    <p>Think of a song you love — find out what type of music person you are!</p>
-</div>
-""", unsafe_allow_html=True)
+SLIDER_HINTS = {
+    "danceability": "0 = sitting completely still · 1 = can't stop moving",
+    "energy":       "0 = slow & gentle · 1 = loud & intense",
+    "valence":      "0 = sad & dark · 1 = happy & euphoric",
+    "tempo":        "60 BPM = slow ballad · 180 BPM = fast EDM track",
+    "loudness":     "-60 dB = nearly silent · 0 dB = maximally loud",
+}
 
-# ─── STATS ROW ─────────────────────────────────────────────────────────────────
-st.markdown(f"""
-<div class="stat-row">
-    <div class="stat-card">
-        <div class="number">{len(df):,}</div>
-        <div class="label">Songs Studied</div>
-    </div>
-    <div class="stat-card">
-        <div class="number">{n_clusters}</div>
-        <div class="label">Music Moods</div>
-    </div>
-    <div class="stat-card">
-        <div class="number">5</div>
-        <div class="label">Song Traits</div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
+# ─── Load Data & Models ──────────────────────────────────────────────────────────
+@st.cache_data
+def load_data():
+    return pd.read_csv("spotify_clustered.csv")
 
-# ─── FEATURES USED ─────────────────────────────────────────────────────────────
-st.markdown("""
-<div class="card">
-    <div class="section-title">🎛️ What We Look At In Every Song</div>
-    <p style="color:#b3b3b3; font-size:0.9rem; margin-bottom:0.8rem;">
-        Every song has 5 hidden scores that describe how it sounds and feels:
-    </p>
-    <span class="feature-badge">💃 How danceable it is</span>
-    <span class="feature-badge">⚡ How energetic it feels</span>
-    <span class="feature-badge">🥁 How fast or slow it is</span>
-    <span class="feature-badge">🔊 How loud it is</span>
-    <span class="feature-badge">😊 How happy or sad it sounds</span>
-</div>
-""", unsafe_allow_html=True)
+@st.cache_data
+def load_pca_data():
+    return pd.read_csv("pca_data.csv")
 
+@st.cache_resource
+def load_models():
+    with open("kmeans_model.pkl", "rb") as f:
+        kmeans = pickle.load(f)
+    with open("scaler.pkl", "rb") as f:
+        scaler = pickle.load(f)
+    with open("pca_model.pkl", "rb") as f:
+        pca = pickle.load(f)
+    return kmeans, scaler, pca
+
+try:
+    df        = load_data()
+    pca_df    = load_pca_data()
+    kmeans, scaler, pca = load_models()
+    models_loaded = True
+except FileNotFoundError:
+    models_loaded = False
+
+# ─── Header ──────────────────────────────────────────────────────────────────────
+st.markdown("# 🎵 Spotify Music Clustering")
+st.markdown("Discover your music personality from **232,725 songs** · KMeans + PCA + t-SNE")
 st.markdown("---")
 
-# ─── CLUSTER EXPLORER ──────────────────────────────────────────────────────────
-st.markdown('<div class="section-title">🎭 The 5 Music Moods</div>', unsafe_allow_html=True)
-st.markdown("<p style='color:#b3b3b3; font-size:0.9rem;'>We grouped all songs into these 5 moods based on how they sound:</p>", unsafe_allow_html=True)
+# ─── Tabs ────────────────────────────────────────────────────────────────────────
+tab1, tab2, tab3, tab4 = st.tabs([
+    "🎚️ Find My Music Mood",
+    "🔍 Cluster Visualization",
+    "📊 Dataset Overview",
+    "📈 Cluster Insights",
+])
 
-cols = st.columns(5)
-for i, col in enumerate(cols):
-    info = cluster_info.get(i, {"name": f"Cluster {i}", "emoji": "🎵", "desc": "", "color": "#1DB954"})
-    with col:
-        st.markdown(f"""
-        <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1);
-                    border-top: 3px solid {info['color']}; border-radius:12px;
-                    padding:0.8rem; text-align:center; height:130px;">
-            <div style="font-size:1.8rem">{info['emoji']}</div>
-            <div style="color:white; font-weight:700; font-size:0.8rem; margin-top:0.3rem">{info['name']}</div>
-            <div style="color:#b3b3b3; font-size:0.7rem; margin-top:0.3rem">{info['desc'][:50]}...</div>
-        </div>
-        """, unsafe_allow_html=True)
+# ════════════════════════════════════════════════════════════════════════════════
+# TAB 1 — PREDICT (main tab, shown first)
+# ════════════════════════════════════════════════════════════════════════════════
+with tab1:
+    st.subheader("🎚️ Adjust the sliders to describe your music taste")
+    st.caption("No typing needed — just slide and discover your music personality.")
 
+    col1, col2 = st.columns(2)
+
+    with col1:
+        danceability = st.slider("💃 Danceability", 0.0, 1.0, 0.65, 0.01)
+        st.markdown(f"<p class='slider-hint'>💡 {SLIDER_HINTS['danceability']}</p>", unsafe_allow_html=True)
+
+        energy = st.slider("⚡ Energy", 0.0, 1.0, 0.70, 0.01)
+        st.markdown(f"<p class='slider-hint'>💡 {SLIDER_HINTS['energy']}</p>", unsafe_allow_html=True)
+
+        valence = st.slider("😊 Valence (Happiness)", 0.0, 1.0, 0.55, 0.01)
+        st.markdown(f"<p class='slider-hint'>💡 {SLIDER_HINTS['valence']}</p>", unsafe_allow_html=True)
+
+    with col2:
+        tempo = st.slider("🥁 Tempo (BPM)", 50.0, 250.0, 120.0, 1.0)
+        st.markdown(f"<p class='slider-hint'>💡 {SLIDER_HINTS['tempo']}</p>", unsafe_allow_html=True)
+
+        loudness = st.slider("🔊 Loudness (dB)", -60.0, 0.0, -8.0, 0.5)
+        st.markdown(f"<p class='slider-hint'>💡 {SLIDER_HINTS['loudness']}</p>", unsafe_allow_html=True)
+
+    st.markdown("")
+    predict_btn = st.button("🔍 Discover My Music Mood", type="primary", use_container_width=True)
+
+    if predict_btn:
+        if models_loaded:
+            input_data   = np.array([[danceability, energy, tempo, loudness, valence]])
+            input_scaled = scaler.transform(input_data)
+            cluster_pred = int(kmeans.predict(input_scaled)[0])
+            info         = CLUSTER_INFO.get(cluster_pred, CLUSTER_INFO[0])
+
+            # ── Result Card ──────────────────────────────────────────────────
+            st.markdown(f"""
+            <div class="result-card">
+                <p class="mood-title">{info['name']}</p>
+                <p class="mood-subtitle">{info['desc']}</p>
+                <p style="margin-top:14px; font-size:1rem; color:rgba(255,255,255,0.7);">
+                    {'  '.join(info['tags'])}
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # ── Two Columns: Radar + Songs ───────────────────────────────────
+            rc1, rc2 = st.columns([1, 1])
+
+            with rc1:
+                st.markdown("#### 🕸️ Your Music Personality Shape")
+
+                # Normalize all 5 features to 0-1 for radar
+                norm_vals = [
+                    danceability,
+                    energy,
+                    valence,
+                    (tempo - 50) / 200,
+                    (loudness + 60) / 60,
+                ]
+                categories = ['Danceability', 'Energy', 'Valence', 'Tempo', 'Loudness']
+
+                fig_radar = go.Figure()
+                fig_radar.add_trace(go.Scatterpolar(
+                    r=norm_vals + [norm_vals[0]],
+                    theta=categories + [categories[0]],
+                    fill='toself',
+                    fillcolor='rgba(29,185,84,0.25)',
+                    line=dict(color='#1DB954', width=3),
+                    name='Your Profile'
+                ))
+                fig_radar.update_layout(
+                    polar=dict(
+                        bgcolor='#1e1e1e',
+                        radialaxis=dict(visible=True, range=[0, 1],
+                                        tickfont=dict(color='#b3b3b3', size=10),
+                                        gridcolor='#333'),
+                        angularaxis=dict(tickfont=dict(color='white', size=12),
+                                         gridcolor='#333')
+                    ),
+                    paper_bgcolor='#121212',
+                    plot_bgcolor='#121212',
+                    showlegend=False,
+                    height=340,
+                    margin=dict(t=20, b=20, l=40, r=40)
+                )
+                st.plotly_chart(fig_radar, use_container_width=True)
+
+            with rc2:
+                st.markdown("#### 🎵 Songs That Match Your Vibe")
+                for song in info['songs']:
+                    st.markdown(f"""
+                    <div class="song-card">
+                        <div class="song-title">🎵 {song['title']}</div>
+                        <div class="song-artist">{song['artist']}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+            # ── Shareable Card ───────────────────────────────────────────────
+            st.markdown("---")
+            st.markdown("#### 📤 Share Your Music Mood")
+            share_text = (
+                f"🎵 My Spotify Music Mood: {info['name']}\n\n"
+                f"{info['desc']}\n\n"
+                f"{' '.join(info['tags'])}\n\n"
+                f"My vibe → Danceability: {danceability:.2f} | Energy: {energy:.2f} | "
+                f"Valence: {valence:.2f} | Tempo: {tempo:.0f} BPM | Loudness: {loudness:.1f} dB\n\n"
+                f"Discover yours at: spotify-clustering.streamlit.app"
+            )
+            st.markdown(f"""
+            <div class="share-box">
+                <p style="font-size:1.5rem; margin:0;">{info['name']}</p>
+                <p style="color:#b3b3b3; margin:8px 0 16px 0;">{info['desc']}</p>
+                <p style="color:#1DB954; font-size:0.9rem;">📸 Screenshot this card and share it!</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.code(share_text, language=None)
+            st.caption("👆 Copy this text and paste it anywhere — Instagram caption, Twitter, WhatsApp!")
+
+        else:
+            st.error("⚠️ Model files not loaded. Make sure kmeans_model.pkl, scaler.pkl, pca_model.pkl are in your repo.")
+
+# ════════════════════════════════════════════════════════════════════════════════
+# TAB 2 — CLUSTER VISUALIZATION
+# ════════════════════════════════════════════════════════════════════════════════
+with tab2:
+    if models_loaded:
+        st.subheader("🔵 PCA – How Songs Cluster Together")
+        st.caption("Each dot is a song. Colors = different mood clusters. Similar songs sit closer together.")
+
+        fig_pca = px.scatter(
+            pca_df, x='PC1', y='PC2',
+            color='cluster',
+            color_continuous_scale='Viridis',
+            labels={'cluster': 'Cluster', 'PC1': 'Principal Component 1', 'PC2': 'Principal Component 2'},
+            title='PCA Visualization – Spotify Song Clusters',
+            opacity=0.55,
+            height=520,
+        )
+        fig_pca.update_traces(marker=dict(size=3))
+        fig_pca.update_layout(paper_bgcolor='#121212', plot_bgcolor='#1e1e1e',
+                              font=dict(color='white'))
+        st.plotly_chart(fig_pca, use_container_width=True)
+
+        st.markdown("---")
+        st.subheader("📊 How Many Songs Are in Each Cluster?")
+        cluster_counts = df['cluster'].value_counts().sort_index().reset_index()
+        cluster_counts.columns = ['Cluster', 'Songs']
+        cluster_counts['Mood'] = cluster_counts['Cluster'].map(
+            {k: v['name'] for k, v in CLUSTER_INFO.items()})
+
+        fig_bar = px.bar(cluster_counts, x='Mood', y='Songs',
+                         color='Songs', color_continuous_scale='Viridis',
+                         title='Song Count per Mood Cluster', height=400)
+        fig_bar.update_layout(paper_bgcolor='#121212', plot_bgcolor='#1e1e1e',
+                               font=dict(color='white'))
+        st.plotly_chart(fig_bar, use_container_width=True)
+
+        try:
+            c1, c2 = st.columns(2)
+            c1.image("pca_clusters.png",  caption="PCA (Matplotlib)", use_container_width=True)
+            c2.image("tsne_clusters.png", caption="t-SNE Visualization", use_container_width=True)
+        except Exception:
+            pass
+    else:
+        st.info("Load model files to see cluster visualizations.")
+
+# ════════════════════════════════════════════════════════════════════════════════
+# TAB 3 — DATASET OVERVIEW
+# ════════════════════════════════════════════════════════════════════════════════
+with tab3:
+    if models_loaded:
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("🎵 Total Songs",   f"{len(df):,}")
+        col2.metric("🔢 Clusters",      df['cluster'].nunique())
+        col3.metric("🎛️ Features Used", len(FEATURES))
+        col4.metric("📊 Dataset",       "232,725 songs")
+
+        st.markdown("---")
+        st.subheader("📁 Dataset Preview (first 100 rows)")
+        available = [f for f in FEATURES if f in df.columns]
+        st.dataframe(df[available + ['cluster']].head(100), use_container_width=True)
+
+        st.markdown("---")
+        st.subheader("📊 Feature Distributions")
+        colors_list = ['#1DB954', '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A']
+        fig, axes = plt.subplots(1, len(available), figsize=(16, 4))
+        fig.patch.set_facecolor('#121212')
+        for i, feat in enumerate(available):
+            axes[i].set_facecolor('#1e1e1e')
+            axes[i].hist(df[feat], bins=40, color=colors_list[i], alpha=0.9, edgecolor='#121212')
+            axes[i].set_title(feat.capitalize(), fontsize=11, fontweight='bold', color='white')
+            axes[i].tick_params(colors='white')
+            axes[i].grid(alpha=0.2, color='gray')
+        plt.tight_layout()
+        st.pyplot(fig)
+    else:
+        st.info("Load model files to see dataset overview.")
+
+# ════════════════════════════════════════════════════════════════════════════════
+# TAB 4 — CLUSTER INSIGHTS
+# ════════════════════════════════════════════════════════════════════════════════
+with tab4:
+    if models_loaded:
+        available = [f for f in FEATURES if f in df.columns]
+        cluster_summary = df.groupby('cluster')[available].mean().round(3)
+
+        st.subheader("🌡️ What Makes Each Cluster Unique?")
+        st.caption("Brighter = higher average value for that feature in that cluster.")
+        fig_heat = px.imshow(
+            cluster_summary.T,
+            color_continuous_scale='YlOrRd',
+            text_auto=True,
+            aspect='auto',
+            title='Average Audio Feature per Cluster',
+            height=380,
+        )
+        fig_heat.update_layout(paper_bgcolor='#121212', font=dict(color='white'))
+        st.plotly_chart(fig_heat, use_container_width=True)
+
+        st.markdown("---")
+        st.subheader("📋 Cluster Means")
+        cluster_summary.index = [
+            f"Cluster {i} — {CLUSTER_INFO.get(i, {}).get('name','')}"
+            for i in cluster_summary.index
+        ]
+        st.dataframe(cluster_summary, use_container_width=True)
+
+        st.markdown("---")
+        st.subheader("🔗 Feature Correlation Matrix")
+        st.caption("Do high-energy songs also have high danceability? Find out here.")
+        corr = df[available].corr()
+        fig_corr = px.imshow(corr, text_auto=True, color_continuous_scale='RdBu_r',
+                             title='Feature Correlation', height=420)
+        fig_corr.update_layout(paper_bgcolor='#121212', font=dict(color='white'))
+        st.plotly_chart(fig_corr, use_container_width=True)
+
+        if 'genre_label' in df.columns:
+            st.markdown("---")
+            st.subheader("🎼 Top Genre per Cluster")
+            top_genre = df.groupby('cluster')['genre_label'].agg(
+                lambda x: x.value_counts().index[0]).reset_index()
+            top_genre.columns = ['Cluster', 'Top Genre']
+            top_genre['Mood'] = top_genre['Cluster'].map(
+                {k: v['name'] for k, v in CLUSTER_INFO.items()})
+            st.dataframe(top_genre[['Cluster', 'Mood', 'Top Genre']], use_container_width=True)
+    else:
+        st.info("Load model files to see cluster insights.")
+
+# ─── Footer ───────────────────────────────────────────────────────────────────────
 st.markdown("---")
-
-# ─── PREDICT YOUR SONG ─────────────────────────────────────────────────────────
-st.markdown('<div class="section-title">🎯 What\'s Your Music Mood?</div>', unsafe_allow_html=True)
-st.markdown("<p style='color:#b3b3b3; font-size:0.9rem; margin-bottom:1.2rem;'>Think of a song you love right now. Move the sliders to describe how it feels, then hit the button!</p>", unsafe_allow_html=True)
-
-st.markdown("<div class='card'>", unsafe_allow_html=True)
-
-col1, col2 = st.columns(2)
-with col1:
-    dance = st.slider("💃 Can you dance to it?", 0.0, 1.0, 0.5, 0.01,
-                      help="0 = no way, 1 = impossible not to dance")
-    energy = st.slider("⚡ How energetic does it feel?", 0.0, 1.0, 0.5, 0.01,
-                       help="0 = super calm and quiet, 1 = wild and intense")
-    tempo = st.slider("🥁 How fast is it? (beats per min)", 50.0, 220.0, 120.0, 1.0,
-                      help="60 = very slow, 120 = normal, 180 = very fast")
-
-with col2:
-    loudness = st.slider("🔊 How loud is it?", -60.0, 0.0, -10.0, 0.5,
-                         help="-60 = very quiet, 0 = very loud")
-    valence = st.slider("😊 Does it make you happy or sad?", 0.0, 1.0, 0.5, 0.01,
-                        help="0 = sad/dark feeling, 1 = happy/uplifting feeling")
-
-st.markdown("</div>", unsafe_allow_html=True)
-
-st.markdown("<br>", unsafe_allow_html=True)
-
-if st.button("🎵 Find My Music Mood!"):
-    input_data = np.array([[dance, energy, tempo, loudness, valence]])
-    input_scaled = scaler.transform(input_data)
-    cluster_pred = int(model.predict(input_scaled)[0])
-    info = cluster_info.get(cluster_pred, {"name": "Unique Vibe", "emoji": "🎵", "desc": "A truly unique sound!", "color": "#1DB954"})
-
-    st.markdown(f"""
-    <div class="result-box" style="background: linear-gradient(135deg, {info['color']}cc, {info['color']}88);">
-        <div style="font-size: 3rem">{info['emoji']}</div>
-        <h2>You're a {info['name']} listener!</h2>
-        <p>{info['desc']}</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown('<div class="section-title">📈 Your Song\'s Vibe Breakdown</div>', unsafe_allow_html=True)
-
-    fig2, ax2 = plt.subplots(figsize=(7, 2.5))
-    fig2.patch.set_facecolor('#1a1a2e')
-    ax2.set_facecolor('#0f0f1a')
-
-    feature_labels = ['Can dance to it', 'How energetic', 'How fast (speed)', 'How loud', 'Happy or sad']
-    user_values = [dance, energy, tempo/220, (loudness+60)/60, valence]
-    bar_colors = [info['color']] * 5
-
-    bars = ax2.barh(feature_labels, user_values, color=bar_colors, alpha=0.85, height=0.5)
-    ax2.set_xlim(0, 1)
-    ax2.tick_params(colors='#b3b3b3', labelsize=8)
-    ax2.set_xlabel('Score (Low → High)', color='#b3b3b3', fontsize=8)
-    for spine in ax2.spines.values():
-        spine.set_color('#333')
-
-    plt.tight_layout()
-    st.pyplot(fig2)
-
-# ─── FOOTER ────────────────────────────────────────────────────────────────────
-st.markdown("---")
-st.markdown("""
-<div style="text-align:center; color:#535353; font-size:0.8rem; padding-bottom:1rem;">
-    Built with KMeans Clustering · Spotify Tracks Dataset · Powered by Streamlit
-</div>
-""", unsafe_allow_html=True)
+st.markdown(
+    "<p style='text-align:center; color:#b3b3b3; font-size:0.85rem;'>"
+    "🎵 Spotify Music Clustering · 232,725 Songs · KMeans + PCA + t-SNE · Built with Streamlit"
+    "</p>",
+    unsafe_allow_html=True
+)
