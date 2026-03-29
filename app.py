@@ -130,13 +130,16 @@ SLIDER_HINTS = {
 }
 
 # ─── Load Data & Models ──────────────────────────────────────────────────────────
-@st.cache_data
-def load_data():
-    return pd.read_csv("spotify_clustered.csv")
 
 @st.cache_data
-def load_pca_data():
-    return pd.read_csv("pca_data.csv")
+def load_data():
+    # support both possible filenames
+    for name in ["clustered_songs.csv", "spotify_clustered.csv"]:
+        try:
+            return pd.read_csv(name)
+        except FileNotFoundError:
+            continue
+    raise FileNotFoundError("No clustered CSV found")
 
 @st.cache_resource
 def load_models():
@@ -144,14 +147,34 @@ def load_models():
         kmeans = pickle.load(f)
     with open("scaler.pkl", "rb") as f:
         scaler = pickle.load(f)
-    with open("pca_model.pkl", "rb") as f:
-        pca = pickle.load(f)
+    # pca_model.pkl is optional — generate PCA on the fly if missing
+    try:
+        with open("pca_model.pkl", "rb") as f:
+            pca = pickle.load(f)
+    except FileNotFoundError:
+        from sklearn.decomposition import PCA
+        pca = None
     return kmeans, scaler, pca
 
+@st.cache_data
+def build_pca_df(pca_model):
+    df = load_data()
+    available = [f for f in FEATURES if f in df.columns]
+    from sklearn.preprocessing import StandardScaler as SS
+    from sklearn.decomposition import PCA
+    X = df[available].fillna(0)
+    X_scaled = SS().fit_transform(X)
+    if pca_model is None:
+        pca_model = PCA(n_components=2, random_state=42)
+    X_pca = pca_model.fit_transform(X_scaled)
+    pca_df = pd.DataFrame(X_pca, columns=['PC1', 'PC2'])
+    pca_df['cluster'] = df['cluster'].values
+    return pca_df
+
 try:
-    df        = load_data()
-    pca_df    = load_pca_data()
+    df = load_data()
     kmeans, scaler, pca = load_models()
+    pca_df = build_pca_df(pca)
     models_loaded = True
 except FileNotFoundError:
     models_loaded = False
